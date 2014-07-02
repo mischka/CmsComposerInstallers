@@ -173,7 +173,7 @@ class CoreInstaller implements \Composer\Installer\InstallerInterface {
 	 * @return string
 	 */
 	public function getInstallPath(\Composer\Package\PackageInterface $package) {
-		return self::TYPO3_SRC_DIR;
+		return $this->getInstallDirectory();
 	}
 
 	/**
