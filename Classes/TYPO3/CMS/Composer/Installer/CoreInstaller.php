@@ -70,9 +70,9 @@ class CoreInstaller implements \Composer\Installer\InstallerInterface {
 		$this->getTypo3OrgService = $getTypo3OrgService;
         $this->symlinks = array(
             $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_INDEX_PHP
-                => $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_INDEX_PHP,
+                => self::TYPO3_INDEX_PHP,
             $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_DIR
-                => $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_DIR
+                => self::TYPO3_DIR
         );
 	}
 
