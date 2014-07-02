@@ -35,6 +35,7 @@ class CoreInstaller implements \Composer\Installer\InstallerInterface {
 	const TYPO3_SRC_DIR		= 'typo3_src';
 	const TYPO3_DIR			= 'typo3';
 	const TYPO3_INDEX_PHP	= 'index.php';
+    const TYPO3_WEB_DIR     = '.';
 
 	protected $symlinks = array();
 
@@ -67,12 +68,12 @@ class CoreInstaller implements \Composer\Installer\InstallerInterface {
 		$this->downloadManager = $composer->getDownloadManager();
 		$this->filesystem = $filesystem;
 		$this->getTypo3OrgService = $getTypo3OrgService;
-		$this->symlinks = array(
-			self::TYPO3_SRC_DIR . DIRECTORY_SEPARATOR . self::TYPO3_INDEX_PHP
-				=> self::TYPO3_INDEX_PHP,
-			self::TYPO3_SRC_DIR . DIRECTORY_SEPARATOR . self::TYPO3_DIR
-				=> self::TYPO3_DIR
-		);
+        $this->symlinks = array(
+            $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_INDEX_PHP
+                => $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_INDEX_PHP,
+            $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_DIR
+                => $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_DIR
+        );
 	}
 
 	/**
@@ -216,6 +217,26 @@ class CoreInstaller implements \Composer\Installer\InstallerInterface {
 		$downloadPath = $this->getInstallPath($package);
 		$this->downloadManager->remove($package, $downloadPath);
 	}
+
+    /**
+     * @return string
+     */
+    protected function getWebDirectory() {
+        $extra = $this->composer->getPackage()->getExtra();
+
+        return isset($extra['typo3-cms-web-dir']) ?
+            $extra['typo3-cms-web-dir'] : self::TYPO3_WEB_DIR;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getInstallDirectory() {
+        $extra = $this->composer->getPackage()->getExtra();
+
+        return isset($extra['typo3-cms-core-installer-path']) ?
+            $extra['typo3-cms-core-installer-path'] : self::TYPO3_SRC_DIR;
+    }
 }
 
 ?>

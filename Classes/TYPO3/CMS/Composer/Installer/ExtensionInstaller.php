@@ -65,7 +65,12 @@ class ExtensionInstaller implements \Composer\Installer\InstallerInterface {
 		$this->downloadManager = $composer->getDownloadManager();
 
 		$this->filesystem = $filesystem ? : new \Composer\Util\Filesystem();
-		$this->extensionDir = self::TYPO3_CONF_DIR . DIRECTORY_SEPARATOR . self::TYPO3_EXT_DIR;
+
+        $extra = $this->composer->getPackage()->getExtra();
+
+        $this->extensionDir = isset($extra['typo3-cms-extension-installer-path']) ?
+            $extra['typo3-cms-extension-installer-path'] :
+            self::TYPO3_CONF_DIR . DIRECTORY_SEPARATOR . self::TYPO3_EXT_DIR;
 	}
 
 	/**
