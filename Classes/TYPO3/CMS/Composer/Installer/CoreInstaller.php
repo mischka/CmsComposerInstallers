@@ -67,12 +67,7 @@ class CoreInstaller implements \Composer\Installer\InstallerInterface {
 		$this->downloadManager = $composer->getDownloadManager();
 		$this->filesystem = $filesystem;
 		$this->getTypo3OrgService = $getTypo3OrgService;
-        $this->symlinks = array(
-            $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_INDEX_PHP
-                => self::TYPO3_INDEX_PHP,
-            $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_DIR
-                => self::TYPO3_DIR
-        );
+        $this->symlinks = $this->getSymlinks();
 	}
 
 	/**
@@ -173,7 +168,7 @@ class CoreInstaller implements \Composer\Installer\InstallerInterface {
 	 */
 	public function getInstallPath(\Composer\Package\PackageInterface $package) {
         $this->filesystem->ensureDirectoryExists($this->getInstallDirectory());
-        return realpath(self::TYPO3_SRC_DIR);
+        return realpath($this->getInstallDirectory());
 	}
 
 	/**
@@ -236,6 +231,20 @@ class CoreInstaller implements \Composer\Installer\InstallerInterface {
 
         return isset($extra['typo3-cms-core-installer-path']) ?
             $extra['typo3-cms-core-installer-path'] : self::TYPO3_SRC_DIR;
+    }
+
+    /**
+     * @return array
+     */
+    protected function getSymlinks() {
+        $extra = $this->composer->getPackage()->getExtra();
+        return isset($extra['typo3-cms-core-symlinks']) && is_array($extra['typo3-cms-core-symlinks']) ?
+            $extra['typo3-cms-core-symlinks'] : array(
+                $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_INDEX_PHP
+                => self::TYPO3_INDEX_PHP,
+                $this->getInstallDirectory() . DIRECTORY_SEPARATOR . self::TYPO3_DIR
+                => self::TYPO3_DIR
+            );
     }
 }
 

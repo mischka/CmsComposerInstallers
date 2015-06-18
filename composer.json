@@ -26,7 +26,8 @@
         "netresearch/composer-installers": "*"
     },
     "require": {
-        "composer-plugin-api": "^1.0.0"
+        "composer-plugin-api": "^1.0.0",
+        "symfony/filesystem": "~2.7.1"
     },
     "require-dev": {
         "composer/composer": "1.*"
