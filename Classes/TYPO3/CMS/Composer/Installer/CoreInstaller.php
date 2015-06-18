@@ -35,7 +35,6 @@ class CoreInstaller implements \Composer\Installer\InstallerInterface {
 	const TYPO3_SRC_DIR		= 'typo3_src';
 	const TYPO3_DIR			= 'typo3';
 	const TYPO3_INDEX_PHP	= 'index.php';
-    const TYPO3_WEB_DIR     = '.';
 
 	protected $symlinks = array();
 
@@ -173,7 +172,8 @@ class CoreInstaller implements \Composer\Installer\InstallerInterface {
 	 * @return string
 	 */
 	public function getInstallPath(\Composer\Package\PackageInterface $package) {
-		return $this->getInstallDirectory();
+        $this->filesystem->ensureDirectoryExists($this->getInstallDirectory());
+        return realpath(self::TYPO3_SRC_DIR);
 	}
 
 	/**
