@@ -59,13 +59,6 @@ class T3xDownloader extends ArchiveDownloader implements ChangeReportInterface {
 		$fileContentStream = file_get_contents($file);
 		$extensionData = $this->decodeTerExchangeData($fileContentStream);
 
-		if ($this->package instanceof PackageInterface) {
-			$extra = $this->package->getExtra();
-			if (isset($extra['emconf_constraints'])) {
-				$extensionData['EM_CONF']['constraints'] = $this->convertDependencies($extra['emconf_constraints']);
-			}
-		}
-
 		if (substr($path, -1) !== DIRECTORY_SEPARATOR) {
 			$path .= DIRECTORY_SEPARATOR;
 		}
@@ -85,12 +78,9 @@ class T3xDownloader extends ArchiveDownloader implements ChangeReportInterface {
 		$path = rtrim($path, '/') . '/';
 
 		// check if there is a ext_emconf.php
-		if (is_file($path . 'ext_emconf.php')) {
-			$_EXTKEY = basename($path);
-			include($path . 'ext_emconf.php');
-
-			$extensionFiles = unserialize($EM_CONF[$_EXTKEY]['_md5_values_when_last_written']);
-
+		try {
+			$emMetaData = $this->getEmConfMetaData($path);
+			$extensionFiles = unserialize($emMetaData['_md5_values_when_last_written']);
 			foreach ($extensionFiles as $extensionFileName => $extensionFileHash) {
 				if (substr($extensionFileName, -1) === '/') {
 					continue;
@@ -107,16 +97,34 @@ class T3xDownloader extends ArchiveDownloader implements ChangeReportInterface {
 			}
 
 
-			if ($package->getPrettyVersion() !== $EM_CONF[$_EXTKEY]['version']) {
-				$messages[] = 'Local Version is ' . $EM_CONF[$_EXTKEY]['version'] . ' but should be ' . $package->getPrettyVersion();
+			if ($package->getPrettyVersion() !== $emMetaData['version']) {
+				$messages[] = 'Local Version is ' . $emMetaData['version'] . ' but should be ' . $package->getPrettyVersion();
 			}
 
 			unset($EM_CONF);
-		} else {
-			$messages[] = 'Package is unstable. "ext_emconf.php" is missing';
+		} catch (\RuntimeException $e) {
+			$messages[] = $e->getMessage();
 		}
 
 		return implode("\n", $messages);
+	}
+
+	/**
+	 * @param string $path
+	 * @return array mixed
+	 */
+	protected function getEmConfMetaData($path) {
+		if (!is_file($path . 'ext_emconf.php')) {
+			throw new \RuntimeException('Package is unstable. "ext_emconf.php" is missing', 1439568877);
+		}
+		$_EXTKEY = basename($path);
+		include($path . 'ext_emconf.php');
+
+		if (!is_array($EM_CONF[$_EXTKEY])) {
+			throw new \RuntimeException('Package is unstable. "ext_emconf.php" is corrupt', 1439569163);
+		}
+
+		return $EM_CONF[$_EXTKEY];
 	}
 
 	/**
@@ -233,6 +241,11 @@ class T3xDownloader extends ArchiveDownloader implements ChangeReportInterface {
 	 * @param string $path path of the extension folder
 	 */
 	protected function writeEmConf(array $extensionData, $path) {
+		$emConfFileData = array();
+		if (file_exists($path . 'ext_emconf.php')) {
+			$emConfFileData = $this->getEmConfMetaData($path);
+		}
+		$extensionData['EM_CONF'] = array_replace_recursive($emConfFileData, $extensionData['EM_CONF']);
 		$emConfContent = $this->constructEmConf($extensionData);
 		if ($fd = fopen($path . 'ext_emconf.php', 'wb')) {
 			fwrite($fd, $emConfContent);
@@ -296,18 +309,21 @@ $EM_CONF[$_EXTKEY] = ' . $emConf . ';
 	 * @return array
 	 */
 	public function fixEmConf(array $emConf) {
-		if (!isset($emConf['constraints']) || !isset($emConf['constraints']['depends']) || !isset($emConf['constraints']['conflicts']) || !isset($emConf['constraints']['suggests'])) {
+		if (
+			!isset($emConf['constraints']) || !isset($emConf['constraints']['depends'])
+			|| !isset($emConf['constraints']['conflicts']) || !isset($emConf['constraints']['suggests'])
+		) {
 			if (!isset($emConf['constraints']) || !isset($emConf['constraints']['depends'])) {
-				$emConf['constraints']['depends'] = $this->stringToDependency($emConf['dependencies']);
-				if (strlen($emConf['PHP_version'])) {
+				$emConf['constraints']['depends'] = isset($emConf['dependencies']) ? $this->stringToDependency($emConf['dependencies']) : array();
+				if ((string)$emConf['PHP_version'] !== '') {
 					$emConf['constraints']['depends']['php'] = $emConf['PHP_version'];
 				}
-				if (strlen($emConf['TYPO3_version'])) {
+				if ((string)$emConf['TYPO3_version'] !== '') {
 					$emConf['constraints']['depends']['typo3'] = $emConf['TYPO3_version'];
 				}
 			}
 			if (!isset($emConf['constraints']) || !isset($emConf['constraints']['conflicts'])) {
-				$emConf['constraints']['conflicts'] = $this->stringToDependency($emConf['conflicts']);
+				$emConf['constraints']['conflicts'] = isset($emConf['conflicts']) ? $this->stringToDependency($emConf['conflicts']) : array();
 			}
 			if (!isset($emConf['constraints']) || !isset($emConf['constraints']['suggests'])) {
 				$emConf['constraints']['suggests'] = array();
@@ -317,10 +333,25 @@ $EM_CONF[$_EXTKEY] = ' . $emConf . ';
 			$emConf['dependencies'] = $this->dependencyToString($emConf['constraints']);
 			$emConf['conflicts'] = $this->dependencyToString($emConf['constraints'], 'conflicts');
 		}
+
+		// Remove TER v1-style entries
+		unset($emConf['dependencies']);
+		unset($emConf['conflicts']);
+		unset($emConf['suggests']);
 		unset($emConf['private']);
 		unset($emConf['download_password']);
 		unset($emConf['TYPO3_version']);
 		unset($emConf['PHP_version']);
+		unset($emConf['internal']);
+		unset($emConf['module']);
+		unset($emConf['loadOrder']);
+		unset($emConf['lockType']);
+		unset($emConf['shy']);
+		unset($emConf['priority']);
+		unset($emConf['modify_tables']);
+		unset($emConf['CGLcompliance']);
+		unset($emConf['CGLcompliance_note']);
+
 		return $emConf;
 	}
 
